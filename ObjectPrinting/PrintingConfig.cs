@@ -1,14 +1,51 @@
 using System;
+using System.Globalization;
 using System.Linq;
+using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace ObjectPrinting
 {
     public class PrintingConfig<TOwner>
     {
+        private CultureInfo numericCultureInfo;
+
+        public PrintingConfig()
+        {
+            numericCultureInfo = CultureInfo.InstalledUICulture;
+        }
+
         public string PrintToString(TOwner obj)
         {
             return PrintToString(obj, 0);
+        }
+
+        public PrintingConfig<TOwner> ExcludeType<TPropType>()
+        {
+            return this;
+        }
+
+        public PrintingConfig<TOwner> ExcludeProperty<TPropType>(Expression<Func<TOwner, TPropType>> selector)
+        {
+            return this;
+        }
+
+        public PropertyPrintingConfig<TOwner, TPropType> Printing<TPropType>()
+        {
+            return new PropertyPrintingConfig<TOwner,TPropType>(this);
+        }
+
+        public PropertyPrintingConfig<TOwner, TPropType> Printing<TPropType>(
+            Expression<Func<TOwner, TPropType>> selector)
+        {
+            return new PropertyPrintingConfig<TOwner, TPropType>(this);
+        }
+
+        public PrintingConfig<TOwner> SetNumericCulture(CultureInfo culture) 
+        {
+            numericCultureInfo = culture;
+            return this;
         }
 
         private string PrintToString(object obj, int nestingLevel)
