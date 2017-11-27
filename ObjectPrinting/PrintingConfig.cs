@@ -14,8 +14,8 @@ namespace ObjectPrinting
         private readonly HashSet<Type> excludedTypes = new HashSet<Type>();
         private readonly HashSet<string> excludedProperties = new HashSet<string>();
 
-        private readonly Dictionary<Type, Delegate> typeSerializations = new Dictionary<Type, Delegate>();
-        private readonly Dictionary<string, Delegate> propertySerializations = new Dictionary<string, Delegate>();
+        private readonly Dictionary<Type, Func<object, string>> typeSerializations = new Dictionary<Type, Func<object, string>>();
+        private readonly Dictionary<string, Func<object, string>> propertySerializations = new Dictionary<string, Func<object, string>>();
         private readonly Dictionary<Type, CultureInfo> cultures = new Dictionary<Type, CultureInfo>();
         private readonly Dictionary<string, int> propertiesLength = new Dictionary<string, int>();
 
@@ -51,10 +51,10 @@ namespace ObjectPrinting
             return new PropertyPrintingConfig<TOwner, TPropType>(this, property.Name);
         }
 
-        public void AddSerialization(Type type, Delegate serializeFunc) =>
+        public void AddSerialization(Type type, Func<object, string> serializeFunc) =>
             typeSerializations[type] = serializeFunc;
 
-        public void AddSerialization(string propertyName, Delegate serializeFunc) =>
+        public void AddSerialization(string propertyName, Func<object, string> serializeFunc) =>
             propertySerializations[propertyName] = serializeFunc;
 
         public void AddCulture(Type type, CultureInfo culture) =>
@@ -66,9 +66,9 @@ namespace ObjectPrinting
         private string PrintToString(object obj, int nestingLevel)
         {
             if (obj == null)
-                return "null" + Environment.NewLine;
+                return $"null{Environment.NewLine}";
             if (finalTypes.Contains(obj.GetType()))
-                return obj + Environment.NewLine;
+                return $"{obj}{Environment.NewLine}";
 
             var identation = new string('\t', nestingLevel + 1);
             var sb = new StringBuilder();
@@ -79,8 +79,7 @@ namespace ObjectPrinting
                 if (excludedTypes.Contains(propertyInfo.PropertyType) ||
                     excludedProperties.Contains(propertyInfo.Name)) continue;
 
-                sb.Append(identation + propertyInfo.Name + " = " +
-                          Serialize(obj, propertyInfo, nestingLevel));
+                sb.Append($"{identation}{propertyInfo.Name} = {Serialize(obj, propertyInfo, nestingLevel)}");
             }
             return sb.ToString();
         }
@@ -90,16 +89,16 @@ namespace ObjectPrinting
             var value = propertyInfo.GetValue(obj);
 
             if (propertiesLength.ContainsKey(propertyInfo.Name))
-                return ((string)value).Substring(0, propertiesLength[propertyInfo.Name]) + Environment.NewLine;
+                return $"{((string)value).Substring(0, propertiesLength[propertyInfo.Name])}{Environment.NewLine}";
 
             if (cultures.ContainsKey(propertyInfo.PropertyType))
-                return ((IFormattable)value).ToString(null, cultures[propertyInfo.PropertyType]) + Environment.NewLine;
+                return $"{((IFormattable)value).ToString(null, cultures[propertyInfo.PropertyType])}{Environment.NewLine}";
 
             if (typeSerializations.ContainsKey(propertyInfo.PropertyType))
-                return typeSerializations[propertyInfo.PropertyType].DynamicInvoke(value) + Environment.NewLine;
+                return $"{typeSerializations[propertyInfo.PropertyType](value)}{Environment.NewLine}";
 
             if (propertySerializations.ContainsKey(propertyInfo.Name))
-                return propertySerializations[propertyInfo.Name].DynamicInvoke(value) + Environment.NewLine;
+                return $"{propertySerializations[propertyInfo.Name](value)}{Environment.NewLine}";
 
             return PrintToString(value, nestingLevel + 1);
         }
